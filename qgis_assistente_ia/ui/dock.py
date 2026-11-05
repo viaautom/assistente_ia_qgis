@@ -10,7 +10,7 @@ import html
 import re
 
 from qgis.PyQt.QtCore import Qt, pyqtSignal
-from qgis.PyQt.QtGui import QPalette, QTextCursor
+from qgis.PyQt.QtGui import QDesktopServices, QPalette, QTextCursor
 from qgis.PyQt.QtWidgets import (
     QDockWidget,
     QHBoxLayout,
@@ -22,8 +22,11 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..core.executor import PYTHON_LANGS
+
 ACCENT = "#14b8a6"  # verde-azulado legível nos temas claro e escuro
 ERROR = "#ef4444"
+SUCCESS = "#22c55e"
 
 _FENCE = re.compile(r"```[ \t]*([\w+-]*)[ \t]*\n(.*?)(?:```|\Z)", re.DOTALL)
 
@@ -36,19 +39,37 @@ def _inline(text):
     return out.replace("\n", "<br>")
 
 
-def render_markdown(text):
-    """Markdown mínimo: blocos de código cercados por ``` e formatação inline."""
+def _code_actions(code_id):
+    links = [
+        f"<a href='code:run:{code_id}' style='color:{ACCENT};'><b>▶ Executar</b></a>",
+        f"<a href='code:copy:{code_id}' style='color:{ACCENT};'>Copiar código</a>",
+        f"<a href='code:save:{code_id}' style='color:{ACCENT};'>Salvar como script</a>",
+    ]
+    return "<p style='margin:2px 0 6px 0;'>" + " &nbsp;·&nbsp; ".join(links) + "</p>"
+
+
+def render_markdown(text, code_ids=None):
+    """Markdown mínimo: blocos de código cercados por ``` e formatação inline.
+
+    code_ids: ids (na ordem) dos blocos Python, para gerar os links de ação.
+    """
+    code_ids = list(code_ids or [])
     parts, pos = [], 0
     for m in _FENCE.finditer(text):
         before = text[pos:m.start()].strip("\n")
         if before:
             parts.append(f"<p>{_inline(before)}</p>")
-        code = html.escape(m.group(2).rstrip("\n"))
+        lang = (m.group(1) or "").lower()
+        raw = m.group(2).strip("\n")
+        code = html.escape(raw)
         parts.append(
             "<table width='100%' cellpadding='6' style='margin:4px 0;'"
             " bgcolor='#1e293b'><tr><td>"
-            f"<pre style='color:#e2e8f0; margin:0;'>{code}</pre></td></tr></table>"
+            "<pre style='color:#e2e8f0; margin:0; white-space:pre-wrap;'>"
+            f"{code}</pre></td></tr></table>"
         )
+        if lang in PYTHON_LANGS and raw.strip() and code_ids:
+            parts.append(_code_actions(code_ids.pop(0)))
         pos = m.end()
     rest = text[pos:].strip("\n")
     if rest:
@@ -77,6 +98,7 @@ class ChatDock(QDockWidget):
     context_requested = pyqtSignal()
     clear_requested = pyqtSignal()
     settings_requested = pyqtSignal()
+    code_action = pyqtSignal(str, int)  # (run|copy|save, id do bloco)
 
     def __init__(self, parent=None):
         super().__init__("Assistente IA", parent)
@@ -91,7 +113,9 @@ class ChatDock(QDockWidget):
         layout.setSpacing(6)
 
         self.view = QTextBrowser(container)
-        self.view.setOpenExternalLinks(True)
+        self.view.setOpenLinks(False)
+        self.view.setOpenExternalLinks(False)
+        self.view.anchorClicked.connect(self._on_anchor)
         layout.addWidget(self.view, 1)
 
         self.status = QLabel("", container)
@@ -136,11 +160,18 @@ class ChatDock(QDockWidget):
     def add_user_message(self, text):
         self._append_block("Você", text, self._palette_color(QPalette.ColorRole.Highlight))
 
-    def add_assistant_message(self, text):
+    def add_assistant_message(self, text, code_ids=None):
         self._append_html(
             f"<p style='margin-top:8px;'><b style='color:{ACCENT};'>Assistente</b></p>"
-            + render_markdown(text)
+            + render_markdown(text, code_ids)
         )
+
+    def add_success(self, title, output=""):
+        body = f"<b style='color:{SUCCESS};'>✔ {html.escape(title)}</b>"
+        if output.strip():
+            body += ("<pre style='white-space: pre-wrap; margin:2px 0;'>"
+                     f"{html.escape(output.strip()[-3000:])}</pre>")
+        self._append_html(f"<p style='margin-top:6px;'>{body}</p>")
 
     def add_info(self, text, preformatted=False):
         """Mensagem informativa (não entra no histórico enviado ao modelo)."""
@@ -176,6 +207,14 @@ class ChatDock(QDockWidget):
         self.input.clear()
         self.add_user_message(text)
         self.message_submitted.emit(text)
+
+    def _on_anchor(self, url):
+        if url.scheme() == "code":
+            action, _, code_id = url.path().partition(":")
+            if code_id.isdigit():
+                self.code_action.emit(action, int(code_id))
+        else:
+            QDesktopServices.openUrl(url)
 
     def _welcome(self):
         self._append_html(

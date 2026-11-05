@@ -77,7 +77,7 @@ def _friendly_error(status, body):
         msg = "Sua chave não tem permissão para este recurso ou modelo."
     elif status == 400 and ("credit" in lower or "billing" in lower):
         msg = ("Saldo de créditos insuficiente na conta Anthropic. "
-               "Adicione créditos em console.anthropic.com > Billing.")
+               "Adicione créditos em platform.claude.com > Billing.")
     elif status == 404:
         msg = "Modelo não encontrado. Escolha outro modelo em Configurações."
     elif status == 413:

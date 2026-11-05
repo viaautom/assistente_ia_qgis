@@ -25,8 +25,8 @@ DEFAULT_MODEL = "claude-sonnet-5-5"
 LANGUAGE_OPTIONS = [("pt", "Português"), ("en", "English"), ("es", "Español")]
 DEFAULT_LANGUAGE = "pt"
 
-CONSOLE_URL = "https://console.anthropic.com/settings/keys"
-BILLING_URL = "https://console.anthropic.com/settings/billing"
+CONSOLE_URL = "https://platform.claude.com/settings/keys"
+BILLING_URL = "https://platform.claude.com/settings/billing"
 
 
 def _settings():
