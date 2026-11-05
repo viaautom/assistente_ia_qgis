@@ -9,8 +9,12 @@ Licença: GNU GPL v2 ou superior.
 import os
 
 from qgis.core import Qgis, QgsMessageLog
+from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
+
+from .core.context import collect_context, context_to_text
+from .ui.dock import ChatDock
 
 PLUGIN_NAME = "Assistente IA"
 MENU_NAME = "&Assistente IA"
@@ -48,6 +52,7 @@ class AssistenteIAPlugin:
             status_tip="Abre o painel de chat do Assistente IA",
             add_to_toolbar=True,
         )
+        self.action_chat.setCheckable(True)
         self.action_settings = self._add_action(
             QIcon(),
             "Configurações…",
@@ -82,14 +87,33 @@ class AssistenteIAPlugin:
     # ------------------------------------------------------------------
     # Ações
     # ------------------------------------------------------------------
-    def open_chat(self):
-        # Etapa 2 substituirá este aviso pelo QDockWidget de chat.
-        log("Ação 'Abrir Assistente IA' acionada.")
-        self.iface.messageBar().pushMessage(
-            PLUGIN_NAME,
-            "Painel de chat em construção (etapa 2).",
-            level=Qgis.Info,
-            duration=4,
+    def open_chat(self, checked=None):
+        """Mostra/oculta o painel de chat (cria na primeira vez)."""
+        if self.dock is None:
+            self.dock = ChatDock(self.iface.mainWindow())
+            self.dock.message_submitted.connect(self.on_message)
+            self.dock.context_requested.connect(self.show_context)
+            self.dock.visibilityChanged.connect(self.action_chat.setChecked)
+            self.iface.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock)
+            self.dock.show()
+        else:
+            self.dock.setVisible(not self.dock.isVisible())
+        if self.dock.isVisible():
+            self.dock.raise_()
+            self.dock.input.setFocus()
+
+    def show_context(self):
+        text = context_to_text(collect_context(self.iface))
+        log("Contexto do projeto:\n" + text)
+        self.dock.add_info("Contexto que será enviado ao assistente:\n\n" + text, preformatted=True)
+
+    def on_message(self, text):
+        # Etapa 3: aqui a mensagem e o contexto serão enviados ao Claude (QgsTask).
+        ctx = collect_context(self.iface)
+        log(f"Mensagem do usuário: {text}\n--- Contexto ---\n{context_to_text(ctx)}")
+        self.dock.add_info(
+            f"(A conexão com o Claude chega na etapa 3.) Contexto coletado com "
+            f"{ctx['total_camadas']} camada(s); detalhes em Mensagens de log > {LOG_TAG}."
         )
 
     def open_settings(self):

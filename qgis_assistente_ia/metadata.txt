@@ -11,7 +11,7 @@ tracker=https://github.com/ibexdev/qgis-assistente-ia/issues
 repository=https://github.com/ibexdev/qgis-assistente-ia
 homepage=https://github.com/ibexdev/qgis-assistente-ia
 
-changelog=0.1.0 - Estrutura inicial do plugin, menu e ícone.
+changelog=0.1.0 - Estrutura inicial, painel de chat e coleta de contexto do projeto.
 
 tags=python, ia, ai, claude, anthropic, pyqgis, assistente, chat, automação, português
 category=Plugins
