@@ -1,0 +1,23 @@
+[general]
+name=Assistente IA para QGIS
+qgisMinimumVersion=3.28
+description=Descreva em português o que deseja fazer e o assistente (Claude, da Anthropic) gera e executa código PyQGIS, sempre com sua confirmação.
+about=Assistente de IA dentro do QGIS. Converse em português num painel lateral: o plugin coleta o contexto do projeto (camadas, SRC, campos, sem enviar os dados das feições), pede ao Claude o código PyQGIS, mostra o código antes de executar e só roda após sua confirmação. Requer uma chave de API própria da Anthropic (console.anthropic.com); o custo de uso da API é do usuário. Desenvolvido pela Ibexdev.
+version=0.1.0
+author=Ibexdev
+email=raf4morais@gmail.com
+
+tracker=https://github.com/ibexdev/qgis-assistente-ia/issues
+repository=https://github.com/ibexdev/qgis-assistente-ia
+homepage=https://github.com/ibexdev/qgis-assistente-ia
+
+changelog=0.1.0 - Estrutura inicial do plugin, menu e ícone.
+
+tags=python, ia, ai, claude, anthropic, pyqgis, assistente, chat, automação, português
+category=Plugins
+icon=icon.png
+experimental=True
+deprecated=False
+hasProcessingProvider=no
+server=False
+license=GPL-2.0-or-later
