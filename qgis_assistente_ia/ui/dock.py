@@ -7,6 +7,7 @@ Licença: GNU GPL v2 ou superior.
 """
 
 import html
+import re
 
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtGui import QPalette, QTextCursor
@@ -23,6 +24,36 @@ from qgis.PyQt.QtWidgets import (
 
 ACCENT = "#14b8a6"  # verde-azulado legível nos temas claro e escuro
 ERROR = "#ef4444"
+
+_FENCE = re.compile(r"```[ \t]*([\w+-]*)[ \t]*\n(.*?)(?:```|\Z)", re.DOTALL)
+
+
+def _inline(text):
+    """Escapa HTML e aplica **negrito** e `código` simples."""
+    out = html.escape(text)
+    out = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", out)
+    out = re.sub(r"`([^`\n]+)`", r"<code>\1</code>", out)
+    return out.replace("\n", "<br>")
+
+
+def render_markdown(text):
+    """Markdown mínimo: blocos de código cercados por ``` e formatação inline."""
+    parts, pos = [], 0
+    for m in _FENCE.finditer(text):
+        before = text[pos:m.start()].strip("\n")
+        if before:
+            parts.append(f"<p>{_inline(before)}</p>")
+        code = html.escape(m.group(2).rstrip("\n"))
+        parts.append(
+            "<table width='100%' cellpadding='6' style='margin:4px 0;'"
+            " bgcolor='#1e293b'><tr><td>"
+            f"<pre style='color:#e2e8f0; margin:0;'>{code}</pre></td></tr></table>"
+        )
+        pos = m.end()
+    rest = text[pos:].strip("\n")
+    if rest:
+        parts.append(f"<p>{_inline(rest)}</p>")
+    return "".join(parts)
 
 
 class ChatInput(QPlainTextEdit):
@@ -44,12 +75,14 @@ class ChatDock(QDockWidget):
 
     message_submitted = pyqtSignal(str)
     context_requested = pyqtSignal()
+    clear_requested = pyqtSignal()
+    settings_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__("Assistente IA", parent)
         self.setObjectName("AssistenteIADock")
-        # Histórico da sessão no formato da Messages API: [{role, content}]
-        self.history = []
+        # O histórico enviado à API fica em core.llm_client.Conversation;
+        # aqui guardamos só a exibição.
         self._busy = False
 
         container = QWidget(self)
@@ -79,12 +112,17 @@ class ChatDock(QDockWidget):
         self.btn_context.clicked.connect(self.context_requested.emit)
         self.btn_clear = QPushButton("Limpar", container)
         self.btn_clear.setToolTip("Apaga o histórico desta conversa")
-        self.btn_clear.clicked.connect(self.clear)
+        self.btn_clear.clicked.connect(self.clear_requested.emit)
+        self.btn_settings = QPushButton("⚙", container)
+        self.btn_settings.setToolTip("Configurações (chave de API, modelo, idioma)")
+        self.btn_settings.setFixedWidth(36)
+        self.btn_settings.clicked.connect(self.settings_requested.emit)
         self.btn_send = QPushButton("Enviar", container)
         self.btn_send.setDefault(True)
         self.btn_send.clicked.connect(self._submit)
         buttons.addWidget(self.btn_context)
         buttons.addWidget(self.btn_clear)
+        buttons.addWidget(self.btn_settings)
         buttons.addStretch(1)
         buttons.addWidget(self.btn_send)
         layout.addLayout(buttons)
@@ -96,12 +134,13 @@ class ChatDock(QDockWidget):
     # API pública
     # ------------------------------------------------------------------
     def add_user_message(self, text):
-        self.history.append({"role": "user", "content": text})
         self._append_block("Você", text, self._palette_color(QPalette.ColorRole.Highlight))
 
     def add_assistant_message(self, text):
-        self.history.append({"role": "assistant", "content": text})
-        self._append_block("Assistente", text, ACCENT)
+        self._append_html(
+            f"<p style='margin-top:8px;'><b style='color:{ACCENT};'>Assistente</b></p>"
+            + render_markdown(text)
+        )
 
     def add_info(self, text, preformatted=False):
         """Mensagem informativa (não entra no histórico enviado ao modelo)."""
@@ -122,7 +161,6 @@ class ChatDock(QDockWidget):
         self.status.setText(message if busy else "")
 
     def clear(self):
-        self.history = []
         self.view.clear()
         self._welcome()
 
