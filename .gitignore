@@ -19,3 +19,6 @@ dist/
 tests/output/
 *.log
 .env
+
+# Documentos internos (não publicar)
+PRD*.md
