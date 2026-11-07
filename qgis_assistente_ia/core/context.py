@@ -43,7 +43,7 @@ def _safe_source(layer):
             layer_name = parts.get("layerName")
             return f"{name}|{layer_name}" if layer_name else name
     except Exception:  # noqa: BLE001
-        pass
+        return None
     return None
 
 

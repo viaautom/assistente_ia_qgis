@@ -193,7 +193,8 @@ def _check_call(node, aliases, result):
 def _namespace(iface):
     """Ambiente semelhante ao do console Python do QGIS."""
     ns = {"__name__": "__assistente_ia__", "iface": iface}
-    exec(  # noqa: S102 (código fixo, não vem do modelo)
+    # Fixed import string (never model output): mirrors the QGIS Python console.
+    exec(  # noqa: S102  # nosec B102
         "from qgis.core import *\n"
         "from qgis.gui import *\n"
         "from qgis.PyQt.QtCore import *\n"
@@ -230,7 +231,8 @@ def execute(code, iface):
     try:
         compiled = compile(code, CODE_FILENAME, "exec")
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
-            exec(compiled, _namespace(iface))  # noqa: S102 (confirmado pelo usuário)
+            # Core feature: runs code the user reviewed and confirmed, after blocklist analysis.
+            exec(compiled, _namespace(iface))  # noqa: S102  # nosec B102
     except SystemExit:
         return ExecResult(False, out.getvalue(), "O código tentou encerrar o programa.")
     except Exception as e:  # noqa: BLE001

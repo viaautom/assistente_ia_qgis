@@ -125,10 +125,12 @@ class AnthropicClient(BaseLLMClient):
         return headers
 
     def _request(self, url, data=None, headers=None, timeout=None):
+        if not url.startswith("https://"):
+            raise ValueError("Only HTTPS URLs are allowed.")
         req = urllib.request.Request(url, data=data, headers=headers or self._headers(),
                                      method="POST" if data is not None else "GET")
         try:
-            with urllib.request.urlopen(req, timeout=timeout or self.timeout,
+            with urllib.request.urlopen(req, timeout=timeout or self.timeout,  # nosec B310
                                         context=self._ctx) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:

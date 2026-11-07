@@ -12,7 +12,7 @@ Licença: GNU GPL v2 ou superior.
 from qgis.core import QgsApplication, QgsSettings
 
 SETTINGS_PREFIX = "assistente_ia/"
-AUTH_KEY = "assistente_ia/anthropic_api_key"
+AUTH_ENTRY_NAME = "assistente_ia/anthropic_api_key"  # pragma: allowlist secret (entry name, not a secret)
 
 # (id do modelo, rótulo exibido)
 MODELS = [
@@ -59,7 +59,7 @@ def _auth_manager():
 
 def has_api_key():
     try:
-        return bool(_auth_manager().existsAuthSetting(AUTH_KEY))
+        return bool(_auth_manager().existsAuthSetting(AUTH_ENTRY_NAME))
     except Exception:  # noqa: BLE001
         return False
 
@@ -68,7 +68,7 @@ def get_api_key():
     """Lê a chave (pode pedir a senha mestra do QGIS). Retorna '' se ausente."""
     if not has_api_key():
         return ""
-    value = _auth_manager().authSetting(AUTH_KEY, "", True)
+    value = _auth_manager().authSetting(AUTH_ENTRY_NAME, "", True)
     return (value or "").strip()
 
 
@@ -77,10 +77,10 @@ def set_api_key(key):
     am = _auth_manager()
     key = (key or "").strip()
     if not key:
-        if am.existsAuthSetting(AUTH_KEY):
-            am.removeAuthSetting(AUTH_KEY)
+        if am.existsAuthSetting(AUTH_ENTRY_NAME):
+            am.removeAuthSetting(AUTH_ENTRY_NAME)
         return True
-    return bool(am.storeAuthSetting(AUTH_KEY, key, True))
+    return bool(am.storeAuthSetting(AUTH_ENTRY_NAME, key, True))
 
 
 def mask_key(key):
